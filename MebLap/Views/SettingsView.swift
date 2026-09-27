@@ -48,7 +48,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Voice")
                 } footer: {
-                    Text("Turn instructions follow your iPhone's language; alerts and distances are spoken in the language you pick.")
+                    Text("Hazard alerts, distances and OpenStreetMap turn instructions use the language you pick. Apple Maps instructions follow your iPhone's language.")
                 }
 
                 Section("Your data") {

@@ -72,13 +72,18 @@ struct NavigationBottomBar: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(Format.arrival(after: session.remainingTime))
                         .font(.title2.bold())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                     Text("\(Format.duration(session.remainingTime)) · \(Format.distance(session.remainingDistance))")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
+                .layoutPriority(1)
 
-                Spacer()
+                Spacer(minLength: 4)
 
                 CircleButton(symbol: session.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill") {
                     session.toggleMute()

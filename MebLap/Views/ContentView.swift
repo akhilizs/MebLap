@@ -455,6 +455,7 @@ struct ContentView: View {
     private func handleLocationUpdate(_ newLocation: CLLocation?) {
         guard let newLocation, let session = vm.navigation else { return }
         session.update(with: newLocation)
+        vm.follow(newLocation)
         if session.needsReroute && !isRerouting {
             isRerouting = true
             Task {
@@ -477,7 +478,7 @@ private extension ContentView {
         switch scene {
         case "map":
             vm.position = .region(MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: 33.880, longitude: 35.530),
+                center: CLLocationCoordinate2D(latitude: 33.872, longitude: 35.525),
                 latitudinalMeters: 11_000, longitudinalMeters: 11_000))
         case "search":
             sheet = .search
@@ -493,7 +494,10 @@ private extension ContentView {
                 hazards.report(.lightsOut, at: c)
             }
             vm.startNavigation(hazards: hazards, language: language, voice: false)
-            if let current = location.location { vm.navigation?.update(with: current) }
+            if let current = location.location {
+                vm.navigation?.update(with: current)
+                vm.follow(current)
+            }
         case "tripCost":
             await demoRoute()
             sheet = .tripCost

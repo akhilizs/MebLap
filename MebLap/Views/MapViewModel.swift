@@ -89,8 +89,8 @@ final class MapViewModel {
         navigation?.end()
         navigation = NavigationSession(option: route, destination: destination,
                                        hazards: hazards.active, language: language, voiceEnabled: voice)
-        withAnimation {
-            position = .userLocation(followsHeading: true, fallback: .automatic)
+        if let session = navigation, let start = session.startCoordinate {
+            withAnimation { position = .camera(session.camera(at: start)) }
         }
     }
 
@@ -112,6 +112,14 @@ final class MapViewModel {
         } catch {
             // Keep guiding on the old route and try again on the next off-route update.
             old.clearRerouteFlag()
+        }
+    }
+
+    /// Keep the camera on the driver while navigating.
+    func follow(_ location: CLLocation) {
+        guard let session = navigation else { return }
+        withAnimation(.linear(duration: 0.8)) {
+            position = .camera(session.camera(at: location.coordinate))
         }
     }
 

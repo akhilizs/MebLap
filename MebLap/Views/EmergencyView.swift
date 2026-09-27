@@ -34,6 +34,7 @@ struct EmergencyView: View {
                                     Text(contact.number).font(.title3.bold().monospacedDigit()).foregroundStyle(Color.lebanonRed)
                                 }
                             }
+                            .tint(.primary)
                         }
                     }
                 }
