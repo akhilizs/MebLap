@@ -89,6 +89,9 @@ struct ContentView: View {
             }
             .task {
                 hazards.purgeExpired()
+                #if DEBUG
+                await runScreenshotSceneIfRequested()
+                #endif
                 await roadConditions.refreshIfStale()
             }
     }
@@ -461,3 +464,104 @@ struct ContentView: View {
         }
     }
 }
+
+#if DEBUG
+/// Screenshot mode for CI: launch with `-MebLapScreenshot <scene>` to open a
+/// screen in a known state. Seeds clearly-demo hazard reports. Debug builds only.
+private extension ContentView {
+    func runScreenshotSceneIfRequested() async {
+        guard let scene = UserDefaults.standard.string(forKey: "MebLapScreenshot") else { return }
+        seedDemoHazards()
+        await waitForLocation()
+
+        switch scene {
+        case "map":
+            vm.position = .region(MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: 33.895, longitude: 35.525),
+                latitudinalMeters: 9_000, longitudinalMeters: 9_000))
+        case "search":
+            sheet = .search
+        case "place":
+            if let jeita = LebanonData.places.first(where: { $0.id == "jeita" }) {
+                select(MapPlace(jeita))
+            }
+        case "route":
+            await demoRoute()
+        case "navigation":
+            await demoRoute()
+            if let route = vm.selectedRoute, let c = coordinate(along: route.coordinates, at: 450) {
+                hazards.report(.lightsOut, at: c)
+            }
+            vm.startNavigation(hazards: hazards, language: language, voice: false)
+            if let current = location.location { vm.navigation?.update(with: current) }
+        case "tripCost":
+            await demoRoute()
+            sheet = .tripCost
+        case "report":
+            sheet = .report(userCoordinate)
+        case "passes":
+            showPasses = true
+            await roadConditions.refresh()
+            vm.position = .region(MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: 33.98, longitude: 35.86),
+                latitudinalMeters: 75_000, longitudinalMeters: 75_000))
+        case "roadConditions":
+            sheet = .roadConditions
+        case "emergency":
+            sheet = .emergency
+        case "settings":
+            sheet = .settings
+        default:
+            break
+        }
+    }
+
+    func waitForLocation() async {
+        var attempts = 0
+        while location.location == nil && attempts < 40 {
+            try? await Task.sleep(for: .milliseconds(250))
+            attempts += 1
+        }
+    }
+
+    func seedDemoHazards() {
+        guard hazards.active.isEmpty else { return }
+        let demo: [(HazardType, Double, Double)] = [
+            (.pothole, 33.8961, 35.4828),
+            (.flooding, 33.8950, 35.5480),
+            (.lightsOut, 33.8870, 35.5230),
+            (.accident, 33.9080, 35.5770),
+            (.checkpoint, 33.8560, 35.4940),
+            (.construction, 33.9010, 35.4800),
+            (.traffic, 33.9380, 35.5870),
+            (.unlitRoad, 33.8700, 35.5450),
+        ]
+        for (type, lat, lon) in demo {
+            hazards.report(type, at: CLLocationCoordinate2D(latitude: lat, longitude: lon))
+        }
+    }
+
+    /// Beirut → Byblos, with demo hazards dropped on the fastest road so the
+    /// "Safest" alternative shows up.
+    func demoRoute() async {
+        guard let byblos = LebanonData.places.first(where: { $0.id == "byblos" }) else { return }
+        select(MapPlace(byblos))
+        await vm.calculateRoutes(from: userCoordinate, hazards: hazards, avoidHazards: true, avoidTolls: false)
+        guard let fastest = vm.routeOptions.min(by: { $0.route.expectedTravelTime < $1.route.expectedTravelTime }),
+              fastest.coordinates.count > 10 else { return }
+        let c = fastest.coordinates
+        hazards.report(.flooding, at: c[c.count * 45 / 100])
+        hazards.report(.accident, at: c[c.count * 70 / 100])
+        await vm.calculateRoutes(from: userCoordinate, hazards: hazards, avoidHazards: true, avoidTolls: false)
+    }
+
+    func coordinate(along coords: [CLLocationCoordinate2D], at meters: Double) -> CLLocationCoordinate2D? {
+        var travelled = 0.0
+        for i in coords.indices.dropFirst() {
+            travelled += GeoMath.distance(coords[i - 1], coords[i])
+            if travelled >= meters { return coords[i] }
+        }
+        return nil
+    }
+}
+#endif
