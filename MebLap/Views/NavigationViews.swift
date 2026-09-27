@@ -143,6 +143,12 @@ struct RoutePanel: View {
                 .font(.caption)
                 .tint(.cedar)
 
+                if vm.selectedRoute?.route.source == .openStreetMap {
+                    Text("Route data © OpenStreetMap contributors")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
                 HStack(spacing: 10) {
                     Button(action: onStart) {
                         Label("Start", systemImage: "location.north.fill")
@@ -263,8 +269,11 @@ struct PlaceCard: View {
                     Button(action: onDirections) {
                         Label("Directions", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
                             .font(.headline)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                             .frame(maxWidth: .infinity)
                     }
+                    .layoutPriority(1)
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .tint(.cedar)

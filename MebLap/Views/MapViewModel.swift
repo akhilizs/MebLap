@@ -60,14 +60,14 @@ final class MapViewModel {
 
     @MainActor
     func calculateRoutes(from origin: CLLocationCoordinate2D?, hazards: HazardStore,
-                         avoidHazards: Bool, avoidTolls: Bool) async {
+                         avoidHazards: Bool, avoidTolls: Bool, language: VoiceLanguage) async {
         guard let destination else { return }
         isCalculating = true
         routeError = nil
         defer { isCalculating = false }
         do {
-            let options = try await RoutingService.routes(from: origin, to: destination,
-                                                          hazards: hazards, avoidTolls: avoidTolls)
+            let options = try await RoutingService.routes(from: origin, to: destination, hazards: hazards,
+                                                          avoidTolls: avoidTolls, language: language)
             routeOptions = options
             let preferred = avoidHazards
                 ? options.min { $0.adjustedTime < $1.adjustedTime }
@@ -101,7 +101,8 @@ final class MapViewModel {
         let muted = old.isMuted
         do {
             let options = try await RoutingService.routes(from: location.coordinate, to: destination,
-                                                          hazards: hazards, avoidTolls: avoidTolls)
+                                                          hazards: hazards, avoidTolls: avoidTolls,
+                                                          language: language)
             guard let best = options.min(by: { $0.adjustedTime < $1.adjustedTime }) else { return }
             old.end()
             routeOptions = options

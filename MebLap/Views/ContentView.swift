@@ -59,7 +59,7 @@ struct ContentView: View {
 
     var body: some View {
         map
-            .overlay(alignment: .top) { topOverlay }
+            .safeAreaInset(edge: .top) { topOverlay }
             .overlay(alignment: .trailing) {
                 if vm.navigation == nil { sideButtons }
             }
@@ -404,7 +404,7 @@ struct ContentView: View {
     private func requestDirections() {
         Task {
             await vm.calculateRoutes(from: userCoordinate, hazards: hazards,
-                                     avoidHazards: avoidHazards, avoidTolls: avoidTolls)
+                                     avoidHazards: avoidHazards, avoidTolls: avoidTolls, language: language)
         }
     }
 
@@ -477,8 +477,8 @@ private extension ContentView {
         switch scene {
         case "map":
             vm.position = .region(MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: 33.895, longitude: 35.525),
-                latitudinalMeters: 9_000, longitudinalMeters: 9_000))
+                center: CLLocationCoordinate2D(latitude: 33.880, longitude: 35.530),
+                latitudinalMeters: 11_000, longitudinalMeters: 11_000))
         case "search":
             sheet = .search
         case "place":
@@ -546,13 +546,13 @@ private extension ContentView {
     func demoRoute() async {
         guard let byblos = LebanonData.places.first(where: { $0.id == "byblos" }) else { return }
         select(MapPlace(byblos))
-        await vm.calculateRoutes(from: userCoordinate, hazards: hazards, avoidHazards: true, avoidTolls: false)
+        await vm.calculateRoutes(from: userCoordinate, hazards: hazards, avoidHazards: true, avoidTolls: false, language: language)
         guard let fastest = vm.routeOptions.min(by: { $0.route.expectedTravelTime < $1.route.expectedTravelTime }),
               fastest.coordinates.count > 10 else { return }
         let c = fastest.coordinates
         hazards.report(.flooding, at: c[c.count * 45 / 100])
         hazards.report(.accident, at: c[c.count * 70 / 100])
-        await vm.calculateRoutes(from: userCoordinate, hazards: hazards, avoidHazards: true, avoidTolls: false)
+        await vm.calculateRoutes(from: userCoordinate, hazards: hazards, avoidHazards: true, avoidTolls: false, language: language)
     }
 
     func coordinate(along coords: [CLLocationCoordinate2D], at meters: Double) -> CLLocationCoordinate2D? {

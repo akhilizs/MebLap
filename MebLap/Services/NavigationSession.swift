@@ -12,7 +12,7 @@ struct HazardAhead: Equatable {
 final class NavigationSession {
     let option: RouteOption
     let destination: MapPlace
-    let steps: [MKRoute.Step]
+    let steps: [RouteStep]
 
     private(set) var stepIndex = 0
     private(set) var distanceToManeuver: CLLocationDistance = 0
@@ -85,7 +85,7 @@ final class NavigationSession {
     }
 
     /// The step whose manoeuvre the driver is heading towards.
-    var upcomingStep: MKRoute.Step? {
+    var upcomingStep: RouteStep? {
         let i = stepIndex + 1
         return i < steps.count ? steps[i] : nil
     }
@@ -98,7 +98,7 @@ final class NavigationSession {
 
     var maneuverSymbol: String {
         if arrived || upcomingStep == nil { return "flag.checkered" }
-        return Self.symbol(for: upcomingStep?.instructions ?? "")
+        return upcomingStep?.symbol ?? Self.symbol(for: upcomingStep?.instructions ?? "")
     }
 
     private var nextManeuverStart: Double {
