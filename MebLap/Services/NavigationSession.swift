@@ -1,4 +1,5 @@
 import MapKit
+import SwiftUI
 import Observation
 
 struct HazardAhead: Equatable {
@@ -12,7 +13,7 @@ struct HazardAhead: Equatable {
 final class NavigationSession {
     let option: RouteOption
     let destination: MapPlace
-    let steps: [MKRoute.Step]
+    let steps: [RouteStep]
 
     private(set) var stepIndex = 0
     private(set) var distanceToManeuver: CLLocationDistance = 0
@@ -22,6 +23,8 @@ final class NavigationSession {
     private(set) var hazardAhead: HazardAhead? = nil
     private(set) var arrived = false
     private(set) var needsReroute = false
+    /// Direction of travel in degrees, for pointing the map camera.
+    private(set) var heading: Double = 0
 
     private(set) var isMuted = false
 
@@ -70,6 +73,9 @@ final class NavigationSession {
         self.remainingTime = option.route.expectedTravelTime
         self.isMuted = !voiceEnabled
 
+        if coords.count > 1 {
+            heading = GeoMath.bearing(from: coords[0], to: coords[1])
+        }
         updateHazards(hazards)
         distanceToManeuver = nextManeuverStart
         speech.speak(speech.starting(destination.name))
@@ -85,7 +91,7 @@ final class NavigationSession {
     }
 
     /// The step whose manoeuvre the driver is heading towards.
-    var upcomingStep: MKRoute.Step? {
+    var upcomingStep: RouteStep? {
         let i = stepIndex + 1
         return i < steps.count ? steps[i] : nil
     }
@@ -98,7 +104,7 @@ final class NavigationSession {
 
     var maneuverSymbol: String {
         if arrived || upcomingStep == nil { return "flag.checkered" }
-        return Self.symbol(for: upcomingStep?.instructions ?? "")
+        return upcomingStep?.symbol ?? Self.symbol(for: upcomingStep?.instructions ?? "")
     }
 
     private var nextManeuverStart: Double {
@@ -126,6 +132,9 @@ final class NavigationSession {
             nearest = GeoMath.nearestSegment(on: coords, to: location.coordinate)
         }
         segmentIndex = nearest.index
+        heading = location.course >= 0 && location.speed > 2
+            ? location.course
+            : GeoMath.bearing(from: coords[segmentIndex], to: coords[min(segmentIndex + 1, coords.count - 1)])
 
         let tolerance = max(60, location.horizontalAccuracy * 1.5)
         if nearest.distance > tolerance {
@@ -156,6 +165,14 @@ final class NavigationSession {
             speech.speak(speech.arrived(destination.name))
         }
     }
+
+    /// Driver-following camera: ahead of the car, tilted, pointing where we're going.
+    func camera(at coordinate: CLLocationCoordinate2D) -> MapCamera {
+        MapCamera(centerCoordinate: coordinate, distance: speedKmh > 70 ? 1_600 : 900,
+                  heading: heading, pitch: 55)
+    }
+
+    var startCoordinate: CLLocationCoordinate2D? { coords.first }
 
     func clearRerouteFlag() {
         needsReroute = false

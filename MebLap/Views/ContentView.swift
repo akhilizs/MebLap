@@ -59,7 +59,7 @@ struct ContentView: View {
 
     var body: some View {
         map
-            .overlay(alignment: .top) { topOverlay }
+            .safeAreaInset(edge: .top) { topOverlay }
             .overlay(alignment: .trailing) {
                 if vm.navigation == nil { sideButtons }
             }
@@ -404,7 +404,7 @@ struct ContentView: View {
     private func requestDirections() {
         Task {
             await vm.calculateRoutes(from: userCoordinate, hazards: hazards,
-                                     avoidHazards: avoidHazards, avoidTolls: avoidTolls)
+                                     avoidHazards: avoidHazards, avoidTolls: avoidTolls, language: language)
         }
     }
 
@@ -455,6 +455,7 @@ struct ContentView: View {
     private func handleLocationUpdate(_ newLocation: CLLocation?) {
         guard let newLocation, let session = vm.navigation else { return }
         session.update(with: newLocation)
+        vm.follow(newLocation)
         if session.needsReroute && !isRerouting {
             isRerouting = true
             Task {
@@ -477,8 +478,8 @@ private extension ContentView {
         switch scene {
         case "map":
             vm.position = .region(MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: 33.895, longitude: 35.525),
-                latitudinalMeters: 9_000, longitudinalMeters: 9_000))
+                center: CLLocationCoordinate2D(latitude: 33.872, longitude: 35.525),
+                latitudinalMeters: 11_000, longitudinalMeters: 11_000))
         case "search":
             sheet = .search
         case "place":
@@ -493,7 +494,10 @@ private extension ContentView {
                 hazards.report(.lightsOut, at: c)
             }
             vm.startNavigation(hazards: hazards, language: language, voice: false)
-            if let current = location.location { vm.navigation?.update(with: current) }
+            if let current = location.location {
+                vm.navigation?.update(with: current)
+                vm.follow(current)
+            }
         case "tripCost":
             await demoRoute()
             sheet = .tripCost
@@ -546,13 +550,13 @@ private extension ContentView {
     func demoRoute() async {
         guard let byblos = LebanonData.places.first(where: { $0.id == "byblos" }) else { return }
         select(MapPlace(byblos))
-        await vm.calculateRoutes(from: userCoordinate, hazards: hazards, avoidHazards: true, avoidTolls: false)
+        await vm.calculateRoutes(from: userCoordinate, hazards: hazards, avoidHazards: true, avoidTolls: false, language: language)
         guard let fastest = vm.routeOptions.min(by: { $0.route.expectedTravelTime < $1.route.expectedTravelTime }),
               fastest.coordinates.count > 10 else { return }
         let c = fastest.coordinates
         hazards.report(.flooding, at: c[c.count * 45 / 100])
         hazards.report(.accident, at: c[c.count * 70 / 100])
-        await vm.calculateRoutes(from: userCoordinate, hazards: hazards, avoidHazards: true, avoidTolls: false)
+        await vm.calculateRoutes(from: userCoordinate, hazards: hazards, avoidHazards: true, avoidTolls: false, language: language)
     }
 
     func coordinate(along coords: [CLLocationCoordinate2D], at meters: Double) -> CLLocationCoordinate2D? {
